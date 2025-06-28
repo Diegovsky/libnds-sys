@@ -1,12 +1,21 @@
+#![allow(unexpected_cfgs)]
 #![no_std]
-#![feature(start)]
-#![feature(const_fn_floating_point_arithmetic)]
-#![feature(panic_info_message)]
+
+use core::ffi::{c_int, c_void, CStr};
 
 use alloc::fmt;
 use alloc::vec::Vec;
 extern crate alloc;
 
+#[cfg(target_os = "nintendo_ds_arm7")]
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    improper_ctypes,
+    dead_code
+)]
+pub mod arm7_bindings;
 #[allow(
     non_upper_case_globals,
     non_camel_case_types,
@@ -17,15 +26,6 @@ extern crate alloc;
 pub mod irq_bindings;
 pub mod memory_allocator;
 pub mod panic;
-#[cfg(target_os = "nintendo_ds_arm7")]
-#[allow(
-    non_upper_case_globals,
-    non_camel_case_types,
-    non_snake_case,
-    improper_ctypes,
-    dead_code
-)]
-pub mod arm7_bindings;
 
 #[cfg(target_os = "nintendo_ds_arm7")]
 #[allow(
@@ -98,11 +98,8 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new() -> Self
-    {
-        Self {
-            buf: Vec::new()
-        }
+    pub fn new() -> Self {
+        Self { buf: Vec::new() }
     }
     pub fn buf(&mut self) -> &mut Vec<u8> {
         &mut self.buf
@@ -134,10 +131,35 @@ macro_rules! print {
 macro_rules! println {
     ($($arg:tt)*) => ({
         use core::fmt::Write;
-        let mut writer = libnds_sys::Buffer::new();
+        let mut writer = $crate::Buffer::new();
         let _ = write!(&mut writer, "{}\n\0", format_args!($($arg)*));
         unsafe {
-            libnds_sys::arm9_bindings::printf("%s\0".as_ptr() as *const core::ffi::c_char, writer.buf().as_ptr() as *const core::ffi::c_char);
+            $crate::arm9_bindings::printf("%s\0".as_ptr() as *const core::ffi::c_char, writer.buf().as_ptr() as *const core::ffi::c_char);
         }
     });
+}
+
+pub fn ewrite(bytes: &[u8]) {
+    use arm9_bindings as arm9;
+    for bytes in bytes.chunks(16) {
+        unsafe {
+            arm9::fwrite(
+                bytes.as_ptr() as *const _,
+                1,
+                bytes.len() as _,
+                arm9::stderr,
+            );
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! eprintln {
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
+        use $crate::arm9_bindings as arm9;
+        let mut writer = $crate::Buffer::new();
+        let _ = write!(&mut writer, "{}\n", format_args!($($arg)*));
+        $crate::ewrite(writer.buf().as_slice());
+    }};
 }

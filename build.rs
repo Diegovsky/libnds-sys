@@ -8,15 +8,16 @@ fn main() {
     let blocksds_path =
         env::var("BLOCKSDS").unwrap_or(String::from("/opt/wonderful/thirdparty/blocksds/core"));
     let profile = env::var("PROFILE").unwrap();
-   
+
+    println!("cargo:rerun-if-changed={}", "wrapper.h");
     println!("cargo:rustc-link-search=native={blocksds_path}/libs/libnds/lib");
     println!("cargo:rustc-link-search=native={blocksds_path}/libs/dswifi/lib");
     println!("cargo:rustc-link-search=native={blocksds_path}/libs/maxmod/lib");
 
-   /*  println!(
+    /*  println!(
         "cargo:rustc-link-search=native={wonderful_path}/toolchain/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/13.2.0/thumb"
     );*/
-   
+
     match target_os.as_str() {
         "nintendo_ds_arm9" => arm9_main(&wonderful_path, &blocksds_path, &profile),
         "nintendo_ds_arm7" => arm7_main(&wonderful_path, &blocksds_path, &profile),
@@ -64,7 +65,10 @@ fn arm7_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
         .clang_arg(format!("-I{}/libs/libnds/include", blocksds_path))
         .clang_arg(format!("-I{}/libs/dswifi/include", blocksds_path))
         .clang_arg(format!("-I{}/libs/maxmod/include", blocksds_path))
-        .header(format!("{}/libs/libnds/include/nds/interrupts.h", blocksds_path))
+        .header(format!(
+            "{}/libs/libnds/include/nds/interrupts.h",
+            blocksds_path
+        ))
         .header(format!("{}/libs/libnds/include/nds.h", blocksds_path))
         .wrap_static_fns(true)
         .wrap_static_fns_path("src/arm7_bindings.c")
@@ -126,16 +130,16 @@ fn arm7_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
         .expect("Couldn't write bindings!");
 
     let wifi_bindings = bindgen::Builder::default()
-    .clang_arg(format!(
-        "-isystem{}/toolchain/gcc-arm-none-eabi/arm-none-eabi/include",
-        wonderful_path
-    ))
-    .clang_arg("-DARM7")
-    .clang_arg("-D__BLOCKSDS__")
-    .clang_arg("-D__NDS__")
-    .clang_arg(format!("-I{}/libs/libnds/include", blocksds_path))
-    .clang_arg(format!("-I{}/libs/dswifi/include", blocksds_path))
-    .clang_arg(format!("-I{}/libs/maxmod/include", blocksds_path))
+        .clang_arg(format!(
+            "-isystem{}/toolchain/gcc-arm-none-eabi/arm-none-eabi/include",
+            wonderful_path
+        ))
+        .clang_arg("-DARM7")
+        .clang_arg("-D__BLOCKSDS__")
+        .clang_arg("-D__NDS__")
+        .clang_arg(format!("-I{}/libs/libnds/include", blocksds_path))
+        .clang_arg(format!("-I{}/libs/dswifi/include", blocksds_path))
+        .clang_arg(format!("-I{}/libs/maxmod/include", blocksds_path))
         // The input header we would like to generate
         // bindings for.
         .header(format!("{}/libs/dswifi/include/dswifi7.h", blocksds_path))
@@ -166,7 +170,7 @@ fn arm7_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
         .object(format!("{}/sys/crts/ds_arm7_vram_crt0.o", &blocksds_path))
         .file("src/arm7_bindings.c")
         .file("src/maxmod7.c")
-  //      .file("src/dswifi7.c")
+        //      .file("src/dswifi7.c")
         .compiler(format!(
             "{}/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
             wonderful_path
@@ -181,8 +185,8 @@ fn arm7_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
         ))
         .no_default_flags(true)
         .define("ARM7", "1")
-        .define("__BLOCKSDS__","1")
-        .define("__NDS__","1")
+        .define("__BLOCKSDS__", "1")
+        .define("__NDS__", "1")
         .flag(&format!(
             "-include{}/wrapper.h",
             env::current_dir().unwrap().display()
@@ -254,9 +258,8 @@ fn arm9_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
     bindings
         .write_to_file("src/arm9_bindings.rs")
         .expect("Couldn't write bindings!");
-    
 
-        cc::Build::new()
+    cc::Build::new()
         .include(env::var("CARGO_MANIFEST_DIR").unwrap())
         .include(format!("{}/libs/libnds/include", blocksds_path))
         .include(format!("{}/libs/dswifi/include", blocksds_path))
@@ -265,28 +268,28 @@ fn arm9_main(wonderful_path: &str, blocksds_path: &str, profile: &str) {
             "{}/toolchain/gcc-arm-none-eabi/arm-none-eabi/include/",
             wonderful_path
         ))
-            .object(format!("{}/sys/crts/ds_arm9_crt0.o", &blocksds_path))
-            .file("src/arm9_bindings.c")
-            .compiler(format!(
-                "{}/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
-                wonderful_path
-            ))
-            .no_default_flags(true)
-            .define("ARM9", "1")
-            .define("__BLOCKSDS__", "1")
-            .define("__NDS__", "1")
-            .flag(&format!(
-                "-include{}/wrapper.h",
-                env::current_dir().unwrap().display()
-            ))
-            .flag("-march=armv5te")
-            .flag("-mfloat-abi=soft")
-            .flag("-mtune=arm946e-s")
-            .flag("-mthumb")
-            .flag("-mthumb-interwork")
-            .flag("-ffunction-sections")
-            .flag("-fdata-sections")
-            .flag("-fomit-frame-pointer")
-            .flag("-w")
-            .compile("bindings");
+        .object(format!("{}/sys/crts/ds_arm9_crt0.o", &blocksds_path))
+        .file("src/arm9_bindings.c")
+        .compiler(format!(
+            "{}/toolchain/gcc-arm-none-eabi/bin/arm-none-eabi-gcc",
+            wonderful_path
+        ))
+        .no_default_flags(true)
+        .define("ARM9", "1")
+        .define("__BLOCKSDS__", "1")
+        .define("__NDS__", "1")
+        .flag(&format!(
+            "-include{}/wrapper.h",
+            env::current_dir().unwrap().display()
+        ))
+        .flag("-march=armv5te")
+        .flag("-mfloat-abi=soft")
+        .flag("-mtune=arm946e-s")
+        .flag("-mthumb")
+        .flag("-mthumb-interwork")
+        .flag("-ffunction-sections")
+        .flag("-fdata-sections")
+        .flag("-fomit-frame-pointer")
+        .flag("-w")
+        .compile("bindings");
 }
