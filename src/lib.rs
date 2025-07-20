@@ -1,8 +1,6 @@
 #![allow(unexpected_cfgs)]
 #![no_std]
 
-use core::ffi::{c_int, c_void, CStr};
-
 use alloc::fmt;
 use alloc::vec::Vec;
 extern crate alloc;
